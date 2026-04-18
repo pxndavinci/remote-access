@@ -1,10 +1,12 @@
-# launcher.ps1
-# No secrets in this file — safe to host publicly on GitHub Gist
-# User runs: irm bit.ly/yourlink | iex
+# ============================================================
+# Secure Remote Access Launcher
+# Host this on GitHub Gist (public) — contains zero secrets
+# Invoke via: irm bit.ly/yourlink | iex
+# ============================================================
 
-$BACKEND_URL = "https://your-worker.your-subdomain.workers.dev"
-$SSH_TARGET  = "100.x.x.x"
-$SSH_USER    = "youruser"
+$BACKEND_URL = "https://remote-access-worker.yourname.workers.dev"
+$SSH_TARGET  = "100.87.37.57"      # Your home machine's Tailscale IP
+$SSH_USER    = "pxanda"
 $SSH_PORT    = 22
 $TS_INSTALL  = "C:\Program Files\Tailscale\tailscale.exe"
 $TS_SVC      = "Tailscale"
