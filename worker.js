@@ -20,24 +20,28 @@ function base32ToBytes(base32) {
   return new Uint8Array(output);
 }
 
-async function generateTOTP(secret) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    base32ToBytes(secret),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"]
-  );
+// Replace the single generateTOTP call + comparison with this:
+async function verifyTOTP(secret, otp) {
   const counter = Math.floor(Date.now() / 30000);
+  for (const delta of [-1, 0, 1]) {
+    const code = await generateTOTPForCounter(secret, counter + delta);
+    if (otp === code) return true;
+  }
+  return false;
+}
+
+async function generateTOTPForCounter(secret, counter) {
+  const key = await crypto.subtle.importKey(
+    "raw", base32ToBytes(secret),
+    { name: "HMAC", hash: "SHA-1" }, false, ["sign"]
+  );
   const buf = new ArrayBuffer(8);
   new DataView(buf).setUint32(4, counter, false);
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, buf));
   const offset = sig[19] & 0xf;
   const code =
-    ((sig[offset] & 0x7f) << 24 |
-      sig[offset + 1] << 16 |
-      sig[offset + 2] << 8 |
-      sig[offset + 3]) % 1000000;
+    ((sig[offset] & 0x7f) << 24 | sig[offset+1] << 16 |
+      sig[offset+2] << 8 | sig[offset+3]) % 1000000;
   return String(code).padStart(6, "0");
 }
 
@@ -68,8 +72,8 @@ export default {
       });
     }
 
-    const expected = await generateTOTP(env.TOTP_SECRET);
-    if (otp !== expected) {
+    const valid = await verifyTOTP(env.TOTP_SECRET, otp);
+    if (!valid) {
       await new Promise(r => setTimeout(r, 2000));
       return new Response(JSON.stringify({ error: "Invalid OTP" }), {
         status: 401,
