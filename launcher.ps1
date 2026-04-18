@@ -15,7 +15,7 @@ $TS_SVC      = "Tailscale"
 if (-not ([Security.Principal.WindowsPrincipal]
     [Security.Principal.WindowsIdentity]::GetCurrent()
   ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $cmd = "irm bit.ly/yourlink | iex"
+    $cmd = "irm bit.ly/pxndxauth | iex"
     Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -Command `"$cmd`""
     exit
 }
