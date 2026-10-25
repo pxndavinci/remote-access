@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# Real secrets — never in the repo.
+gatekeeper.env

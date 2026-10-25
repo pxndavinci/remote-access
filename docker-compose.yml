@@ -1,0 +1,69 @@
+services:
+  gatekeeper:
+    image: python:3.13-slim
+    container_name: remote-gatekeeper
+    restart: unless-stopped
+
+    # gatekeeper.py is stdlib-only, so there is nothing to build — the stock
+    # Python image plus a read-only mount of the source is the whole thing.
+    working_dir: /app
+    volumes:
+      - ./gatekeeper.py:/app/gatekeeper.py:ro
+      - ./launcher.ps1:/app/launcher.ps1:ro
+    command: ["python3", "/app/gatekeeper.py"]
+
+    # Secrets: chmod 600, gitignored, never baked into an image.
+    env_file:
+      - ./gatekeeper.env
+
+    # These override anything in gatekeeper.env so a stale env file cannot
+    # break the listen address. Inside the container we bind 0.0.0.0; the
+    # ports mapping below is what restricts who can actually reach it.
+    environment:
+      BIND_HOST: "0.0.0.0"
+      BIND_PORT: "8787"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    # No published port at all. cloudflared shares the joatverse_edge network
+    # and reaches this container by name: http://remote-gatekeeper:8787
+    #
+    # Earlier this published to 172.17.0.1:8787 and the ingress rule pointed at
+    # that IP. Using the name instead means nothing breaks when Docker
+    # reshuffles addresses, and the service is not exposed on a host interface.
+    networks:
+      - joatverse_edge
+
+    # ── Hardening ────────────────────────────────────────────────────────────
+    # This process holds a credential that mints VPN keys, so it runs as
+    # nobody, with no capabilities, and cannot write to its own filesystem.
+    user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/archie', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Created once with: docker network create joatverse_edge
+# Shared with the cloudflared connector, which is defined in
+# ~/Base/projects/joatverse/homelab/cloudflared/.
+networks:
+  joatverse_edge:
+    external: true
+    name: joatverse_edge
